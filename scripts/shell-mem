@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# shell-mem — unified entry point for diy-claude-mem
+# Usage: shell-mem <command> [args...] | shell-mem -h
+
+SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+case "$1" in
+  -h|--help)
+    # TL;DR first
+    cat <<'EOF'
+shell-mem — Claude shell command memory system
+
+  Logs every Bash command Claude runs. Tracks background processes.
+  Survives /compact. One log file per day at ~/.claude/shell-logs/.
+  Context auto-injected when active background shells exist.
+
+Commands:
+  tail [N] [YYYY-MM-DD]              Show last N lines (default 30)
+  search <query> [today|week|month]  Search log files
+  mark-done <sid> <cmd> [date]       Mark a background process as done
+  cleanup                            Delete logs older than 60 days
+  append <sid> <cmd> <is_bg> [pid]   Manually append a log entry
+  file [YYYY-MM-DD]                  Print path to a log file
+
+EOF
+    # Then full details from PLAN.md — extract the Scripts section
+    PLAN="$SCRIPTS_DIR/../PLAN.md"
+    if [ -f "$PLAN" ]; then
+      echo "--- Full reference (from PLAN.md) ---"
+      # Print from "## Scripts" section to next "## " heading
+      awk '/^## Scripts/,/^## [^S]/' "$PLAN" | head -n -1
+    fi
+    exit 0
+    ;;
+  tail)        shift; exec "$SCRIPTS_DIR/shell-log-tail.sh" "$@" ;;
+  search)      shift; exec "$SCRIPTS_DIR/shell-log-search.sh" "$@" ;;
+  mark-done)   shift; exec "$SCRIPTS_DIR/shell-log-mark-done.sh" "$@" ;;
+  cleanup)     shift; exec "$SCRIPTS_DIR/shell-log-cleanup.sh" "$@" ;;
+  append)      shift; exec "$SCRIPTS_DIR/shell-log-append.sh" "$@" ;;
+  file)        shift; exec "$SCRIPTS_DIR/shell-log-file.sh" "$@" ;;
+  "")
+    echo "Usage: shell-mem <command> [args...] | shell-mem -h" >&2
+    exit 1
+    ;;
+  *)
+    echo "Unknown command: $1" >&2
+    echo "Run 'shell-mem -h' for help." >&2
+    exit 1
+    ;;
+esac

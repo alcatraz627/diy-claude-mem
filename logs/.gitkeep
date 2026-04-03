@@ -1,0 +1,2 @@
+# Shell logs live at ~/.claude/shell-logs/ (not tracked in git)
+# Files older than 60 days can be deleted (run shell-log-cleanup.sh)
