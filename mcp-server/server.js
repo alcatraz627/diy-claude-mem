@@ -19,7 +19,7 @@ function run(script, args = []) {
 }
 
 const server = new Server(
-  { name: "diy-claude-mem", version: "1.1.0" },
+  { name: "diy-claude-mem", version: "1.2.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -72,6 +72,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       }
     },
     {
+      name: "shell_stats",
+      description: "Show today's shell log statistics: command count, session count, active and completed background processes, log file size.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          date: { type: "string", description: "Date in YYYY-MM-DD format (default today)" }
+        }
+      }
+    },
+    {
       name: "shell_cleanup",
       description: "Delete shell log files older than 60 days.",
       inputSchema: { type: "object", properties: {} }
@@ -109,6 +119,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       break;
     case "shell_mark_done":
       output = run("shell-log-mark-done.sh", [args.session_id, args.cmd, ...(args.date ? [args.date] : [])]);
+      break;
+    case "shell_stats":
+      output = run("shell-log-stats.sh", [...(args.date ? [args.date] : [])]);
       break;
     case "shell_cleanup":
       output = run("shell-log-cleanup.sh", []);

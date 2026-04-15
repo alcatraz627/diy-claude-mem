@@ -15,6 +15,7 @@ Prefer MCP tools (discoverable, no path memorization). Bash fallbacks are listed
 | `shell_tail(n, date)` | Show recent log entries (default: 30 lines, today) |
 | `shell_search(query, scope)` | Search history — scope: `today` \| `week` \| `month` \| `all` |
 | `shell_active(days)` | List active (not done) background processes from last N days |
+| `shell_stats(date?)` | Today's command count, sessions, active/done BG, log size |
 | `shell_mark_done(session_id, cmd, date?)` | Mark a BG process as finished |
 | `shell_cleanup()` | Delete logs older than 60 days |
 | `shell_append(session_id, cmd, is_bg, pid?)` | Manually log a command |
@@ -35,7 +36,7 @@ Prefer MCP tools (discoverable, no path memorization). Bash fallbacks are listed
 ~/.claude/scripts/diy-mem/shell-log-mark-done.sh <session_id> "<command_fragment>" [YYYY-MM-DD]
 
 # Stats
-~/.claude/scripts/diy-mem/shell-mem stats
+~/.claude/scripts/diy-mem/shell-log-stats.sh [YYYY-MM-DD]
 
 # Cleanup old logs (>60 days)
 ~/.claude/scripts/diy-mem/shell-log-cleanup.sh

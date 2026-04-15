@@ -42,36 +42,7 @@ EOF
   append)      shift; exec "$SCRIPTS_DIR/shell-log-append.sh" "$@" ;;
   file)        shift; exec "$SCRIPTS_DIR/shell-log-file.sh" "$@" ;;
 
-  stats)
-    LOG_DIR="$HOME/.claude/shell-logs"
-    TODAY=$(date +%Y-%m-%d)
-    LOG_FILE="$LOG_DIR/$TODAY.md"
-
-    if [ ! -f "$LOG_FILE" ]; then
-      echo "No log file for today ($TODAY)."
-      exit 0
-    fi
-
-    TOTAL_CMDS=$(grep -c '^\- \[' "$LOG_FILE" 2>/dev/null || echo 0)
-    SESSIONS=$(grep -c '^### Session:' "$LOG_FILE" 2>/dev/null || echo 0)
-    ACTIVE_BG=$(grep '\[BG\]' "$LOG_FILE" 2>/dev/null | grep -cv '\[BG:DONE\]' 2>/dev/null || echo 0)
-    DONE_BG=$(grep -c '\[BG:DONE\]' "$LOG_FILE" 2>/dev/null || echo 0)
-    LOG_SIZE=$(wc -c < "$LOG_FILE" 2>/dev/null | tr -d ' ')
-
-    printf "Today (%s):\n" "$TODAY"
-    printf "  Commands logged : %s\n" "$TOTAL_CMDS"
-    printf "  Sessions        : %s\n" "$SESSIONS"
-    printf "  Active BG       : %s\n" "$ACTIVE_BG"
-    printf "  Completed BG    : %s\n" "$DONE_BG"
-    printf "  Log file size   : %s bytes\n" "$LOG_SIZE"
-
-    # Show all log files
-    if [ -d "$LOG_DIR" ]; then
-      TOTAL_FILES=$(find "$LOG_DIR" -name "????-??-??.md" -type f 2>/dev/null | wc -l | tr -d ' ')
-      printf "  Total log files : %s\n" "$TOTAL_FILES"
-    fi
-    exit 0
-    ;;
+  stats)        shift; exec "$SCRIPTS_DIR/shell-log-stats.sh" "$@" ;;
 
   "")
     echo "Usage: shell-mem <command> [args...] | shell-mem -h" >&2

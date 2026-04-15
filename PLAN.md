@@ -295,6 +295,37 @@ Copied to `~/.claude/scripts/diy-mem/shell-mem` (no `.sh` extension — clean CL
 
 ---
 
+## Phase 2+ — Improvements ✓ Done
+
+**Goal:** Improve runtime correctness, lookup performance, and discoverability beyond Phase 2.
+
+### Additions over Phase 2
+- **PID aliveness check**: `inject-shell-state.sh` uses `kill -0 $PID` to classify BG entries
+  as live vs orphaned — emits two separate `additionalContext` sections
+- **Cross-day active query**: `shell-log-active.sh` — new script for querying active BG entries
+  across the last N days; used by `inject-shell-state.sh` and `init-session.sh`
+- **Session carryover**: `init-session.sh` injects active BG from previous sessions as
+  `additionalContext` at `SessionStart`
+- **O(1) search**: `shell-log-search.sh` replaced N-subprocess date loop with `find` +
+  lexicographic string comparison (one `date` call per scope)
+- **`active` subcommand**: `shell-mem active [days]` — delegates to `shell-log-active.sh`
+- **`stats` subcommand**: `shell-mem stats [date]` — delegates to `shell-log-stats.sh`
+- **user-skip.conf**: `config.sh` loads optional `user-skip.conf` for user-customizable
+  skip patterns without editing core config
+- **`shell_active` MCP tool**: added to MCP server (v1.1.0)
+- **`shell_stats` MCP tool**: added to MCP server (v1.2.0)
+- **MCP-first SKILL.md**: skill docs now lead with MCP tool table; bash paths as fallback
+
+### New scripts
+- `shell-log-active.sh` — cross-day active BG query primitive
+- `shell-log-stats.sh` — today's log statistics (extracted from shell-mem dispatcher)
+
+### Integration notes
+- `docs/idream-integration.md` — agent-ready guide for i-dream integration (5 integration
+  points across metacog.rs, dreaming.rs, intuition.rs; shared `session_id` data contract)
+
+---
+
 ## Phase 3 — Long-term Memory
 
 **Goal:** AI compression, permanent archive, handoff docs, search lookup, consolidation.
