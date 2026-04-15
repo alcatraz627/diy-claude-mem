@@ -2,3 +2,6 @@ node_modules/
 mcp-server/node_modules/
 *.log
 .DS_Store
+
+# Agent-generated context files
+_*.claude.md
