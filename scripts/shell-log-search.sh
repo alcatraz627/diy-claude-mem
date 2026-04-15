@@ -2,6 +2,10 @@
 # Searches shell log files for a query string.
 # Usage: shell-log-search.sh <query> [today|week|month|all]
 # Always exits 0.
+#
+# Performance note: for week/month scopes, uses find + lexicographic date comparison
+# to avoid spawning N date subprocesses (one per day). Since filenames are YYYY-MM-DD,
+# string comparison gives identical ordering to numeric date comparison.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 QUERY="${1:-}"
@@ -17,34 +21,44 @@ if [ ! -d "$LOG_DIR" ]; then
   exit 0
 fi
 
-get_date_files() {
-  local days="$1"
-  local i=0
-  while [ "$i" -lt "$days" ]; do
-    local d
-    d=$(date -v-"${i}d" +%Y-%m-%d 2>/dev/null) || d=$(date -d "-${i} days" +%Y-%m-%d 2>/dev/null) || true
-    if [ -n "$d" ] && [ -f "$LOG_DIR/$d.md" ]; then
-      echo "$LOG_DIR/$d.md"
-    fi
-    i=$((i + 1))
-  done
+# Returns YYYY-MM-DD for N days ago — one call per scope, not per day
+days_ago() {
+  local n="$1"
+  date -v-"${n}d" +%Y-%m-%d 2>/dev/null || date -d "-${n} days" +%Y-%m-%d 2>/dev/null || echo ""
 }
 
 case "$SCOPE" in
   today)
-    FILES=$(get_date_files 1)
+    TODAY=$(date +%Y-%m-%d)
+    FILES=""
+    [ -f "$LOG_DIR/$TODAY.md" ] && FILES="$LOG_DIR/$TODAY.md"
     ;;
   week)
-    FILES=$(get_date_files 7)
+    CUTOFF=$(days_ago 7)
+    # find all log files and filter by name >= cutoff (lexicographic = chronological for ISO dates)
+    FILES=$(find "$LOG_DIR" -maxdepth 1 -name "????-??-??.md" -type f 2>/dev/null \
+      | sort \
+      | while IFS= read -r f; do
+          d=$(basename "$f" .md)
+          [ "$d" \> "$CUTOFF" ] || [ "$d" = "$CUTOFF" ] && echo "$f"
+        done)
     ;;
   month)
-    FILES=$(get_date_files 30)
+    CUTOFF=$(days_ago 30)
+    FILES=$(find "$LOG_DIR" -maxdepth 1 -name "????-??-??.md" -type f 2>/dev/null \
+      | sort \
+      | while IFS= read -r f; do
+          d=$(basename "$f" .md)
+          [ "$d" \> "$CUTOFF" ] || [ "$d" = "$CUTOFF" ] && echo "$f"
+        done)
     ;;
   all)
-    FILES=$(find "$LOG_DIR" -name "????-??-??.md" -type f 2>/dev/null | sort)
+    FILES=$(find "$LOG_DIR" -maxdepth 1 -name "????-??-??.md" -type f 2>/dev/null | sort)
     ;;
   *)
-    FILES=$(get_date_files 1)
+    TODAY=$(date +%Y-%m-%d)
+    FILES=""
+    [ -f "$LOG_DIR/$TODAY.md" ] && FILES="$LOG_DIR/$TODAY.md"
     ;;
 esac
 

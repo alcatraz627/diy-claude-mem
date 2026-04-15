@@ -57,7 +57,7 @@
   <img src="https://img.shields.io/badge/bash-5.x-4EAA25?logo=gnubash&logoColor=white" alt="Bash"/>
   <img src="https://img.shields.io/badge/node.js-MCP_server-339933?logo=nodedotjs&logoColor=white" alt="Node.js"/>
   <img src="https://img.shields.io/badge/deps-zero_(bash_+_jq)-blue" alt="Zero deps"/>
-  <img src="https://img.shields.io/badge/phase-1_%2B_2_complete-brightgreen" alt="Phase 2 complete"/>
+  <img src="https://img.shields.io/badge/phase-2%2B_improvements-brightgreen" alt="Phase 2+ complete"/>
   <img src="https://img.shields.io/github/license/alcatraz627/diy-claude-mem" alt="License"/>
 </p>
 
@@ -114,19 +114,23 @@ Claude Code loses track of background Bash processes after context compaction:
 ```mermaid
 graph LR
     A[Claude runs Bash] -->|PostToolUse| B[track-bash.sh]
-    B -->|noise filter + dedup| C{skip?}
+    B -->|config.sh skip-list + dedup| C{skip?}
     C -->|no| D[shell-log-append.sh]
     C -->|yes| Z[dropped]
     D -->|PID + port tags| E[~/.claude/shell-logs/YYYY-MM-DD.md]
     F[BG process finishes] -->|PostToolUse/BashOutput| G[mark-done-bash.sh]
     G -->|BG → BG:DONE| E
     H[You send a message] -->|UserPromptSubmit| I[inject-shell-state.sh]
-    I -->|only if active BG entries| J[additionalContext injected]
+    I -->|shell-log-active.sh + kill -0 PID| I2{live or orphaned?}
+    I2 -->|live| J[additionalContext: Active BG]
+    I2 -->|orphaned| J2[additionalContext: Orphaned BG]
     K[PreCompact fires] -->|pre-compact-shell.sh| L[~/.claude/wal.md]
     M[Claude stops a turn] -->|Stop hook| N[session-end-shell.sh]
     N -->|summary line| L
-    O[Claude invokes tool] -->|MCP| P[shell-mem MCP server]
-    P --> E
+    O[SessionStart] -->|init-session.sh| E
+    O -->|carryover BG from prev sessions| J
+    P[Claude invokes tool] -->|MCP| Q[shell-mem MCP server]
+    Q -->|shell_active, shell_tail, etc.| E
 ```
 
 ---
@@ -169,6 +173,12 @@ registers the 6 hooks in `~/.claude/settings.json` if not already present.
 # See recent commands
 shell-mem tail 50
 
+# Show only active background processes (cross-day)
+shell-mem active
+
+# Today's stats: command count, sessions, active BG
+shell-mem stats
+
 # Search this week
 shell-mem search "docker" week
 
@@ -187,6 +197,7 @@ Claude uses the `diy-claude-mem` MCP server natively — no path memorization re
 |---|---|
 | `shell_tail(n, date)` | Show recent log entries |
 | `shell_search(query, scope)` | Search across date ranges |
+| `shell_active(days)` | List active BG processes (cross-day, with PID check) |
 | `shell_mark_done(session_id, cmd)` | Mark a BG process as finished |
 | `shell_cleanup()` | Delete logs older than 60 days |
 | `shell_append(session_id, cmd, is_bg)` | Manually append an entry |
@@ -204,6 +215,7 @@ Falls back to `shell-mem` CLI if MCP is unavailable.
 | 1.2 | ✅ Done | Lock file for concurrent agent safety |
 | 1.3 | ✅ Done | Global dispatcher CLI (`shell-mem`) |
 | 2 | ✅ Done | PID capture, port detection, noise filter, dedup, WAL integration |
+| 2+ | ✅ Done | PID aliveness check (`kill -0`), orphaned BG detection, cross-day active query, session carryover, `active`/`stats` subcommands, user-skip.conf, `shell_active` MCP tool |
 | 3 | Planned | AI compression, permanent archive, handoff docs, consolidation |
 
 ---
@@ -213,26 +225,29 @@ Falls back to `shell-mem` CLI if MCP is unavailable.
 ```
 diy-claude-mem/
 ├── scripts/
-│   ├── config.sh              <- Phase 2: skip-list + port patterns
-│   ├── shell-mem              <- dispatcher (entry point)
+│   ├── config.sh              <- skip-list + port patterns + user-skip.conf loader
+│   ├── shell-mem              <- dispatcher (entry point) — active, stats subcommands
 │   ├── shell-log-file.sh
 │   ├── shell-log-append.sh    <- Phase 2: port/PID tagging via DIYMEN_PORT env
+│   ├── shell-log-active.sh    <- cross-day active BG query primitive
 │   ├── shell-log-tail.sh
-│   ├── shell-log-search.sh
+│   ├── shell-log-search.sh    <- O(1) date calls via find + lexicographic compare
 │   ├── shell-log-mark-done.sh
 │   ├── shell-log-cleanup.sh
 │   └── hooks/
-│       ├── track-bash.sh          <- Phase 2: noise filter + dedup + PID
+│       ├── track-bash.sh          <- noise filter + dedup + PID/port capture
 │       ├── mark-done-bash.sh
-│       ├── inject-shell-state.sh
-│       ├── init-session.sh
-│       ├── pre-compact-shell.sh   <- Phase 2: WAL snapshot on PreCompact
-│       └── session-end-shell.sh   <- Phase 2: WAL summary on Stop
+│       ├── inject-shell-state.sh  <- kill -0 PID check, orphaned BG detection
+│       ├── init-session.sh        <- carryover active BG from previous sessions
+│       ├── pre-compact-shell.sh   <- WAL snapshot on PreCompact
+│       └── session-end-shell.sh   <- WAL summary on Stop
 ├── mcp-server/
-│   ├── server.js
+│   ├── server.js              <- added shell_active tool (v1.1.0)
 │   └── package.json
 ├── skills/
-│   └── shell-mem/SKILL.md
+│   └── shell-mem/SKILL.md     <- MCP-first, bash paths as fallback
+├── docs/
+│   └── idream-integration.md  <- agent-ready i-dream integration guide
 ├── install.sh
 ├── PLAN.md
 └── .gitignore
@@ -250,4 +265,5 @@ WAL: `~/.claude/wal.md` (Phase 2 snapshots and per-turn summaries)
 3. **No external deps** — bash + jq only
 4. **Scripts are the API** — Claude uses scripts/MCP, never raw file reads
 5. **Progressively disclose** — inject only when active BG entries exist
-6. **Configurable skip-list** — edit `scripts/config.sh` to tune noise filtering
+6. **Configurable skip-list** — edit `config.sh` or create `user-skip.conf` alongside it
+7. **PID aliveness** — `kill -0 $PID` classifies entries as live vs orphaned without subprocesses

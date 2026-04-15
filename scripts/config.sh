@@ -26,6 +26,23 @@ DIYMEN_SKIP_PATTERNS=(
   "^#"
 )
 
+# ── User-configurable skip patterns ───────────────────────────────────────────
+# Create ~/.claude/scripts/diy-mem/user-skip.conf to add your own patterns.
+# One ERE pattern per line. Lines starting with # are comments. Example:
+#
+#   # Skip my custom build check
+#   ^check-build
+#   ^my-noisy-tool
+#
+USER_SKIP_CONF="${BASH_SOURCE[0]%/*}/user-skip.conf"
+if [ -f "$USER_SKIP_CONF" ]; then
+  while IFS= read -r line; do
+    # Skip blank lines and comments
+    [[ -z "$line" || "$line" == \#* ]] && continue
+    DIYMEN_SKIP_PATTERNS+=("$line")
+  done < "$USER_SKIP_CONF"
+fi
+
 # ── Duration estimates ─────────────────────────────────────────────────────────
 # Used by shell-log-append.sh via estimate_duration().
 # Defined here so they can be updated in one place.

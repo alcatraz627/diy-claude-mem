@@ -19,7 +19,7 @@ function run(script, args = []) {
 }
 
 const server = new Server(
-  { name: "diy-claude-mem", version: "1.0.0" },
+  { name: "diy-claude-mem", version: "1.1.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -46,6 +46,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           scope: { type: "string", enum: ["today", "week", "month", "all"], description: "Date range to search (default today)" }
         },
         required: ["query"]
+      }
+    },
+    {
+      name: "shell_active",
+      description: "List active (not yet done) background shell processes from recent sessions. Checks across the last N days. Use this to see what's still running.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          days: { type: "number", description: "How many days back to check (default 2)" }
+        }
       }
     },
     {
@@ -93,6 +103,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       break;
     case "shell_search":
       output = run("shell-log-search.sh", [args.query, args.scope || "today"]);
+      break;
+    case "shell_active":
+      output = run("shell-log-active.sh", [args.days || 2]);
       break;
     case "shell_mark_done":
       output = run("shell-log-mark-done.sh", [args.session_id, args.cmd, ...(args.date ? [args.date] : [])]);

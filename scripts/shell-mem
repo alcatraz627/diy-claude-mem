@@ -18,6 +18,8 @@ Commands:
   tail [N] [YYYY-MM-DD]              Show last N lines (default 30)
   search <query> [today|week|month]  Search log files
   mark-done <sid> <cmd> [date]       Mark a background process as done
+  active [days]                      Show active (not done) background processes
+  stats                              Show today's command count, sessions, BG status
   cleanup                            Delete logs older than 60 days
   append <sid> <cmd> <is_bg> [pid]   Manually append a log entry
   file [YYYY-MM-DD]                  Print path to a log file
@@ -35,9 +37,42 @@ EOF
   tail)        shift; exec "$SCRIPTS_DIR/shell-log-tail.sh" "$@" ;;
   search)      shift; exec "$SCRIPTS_DIR/shell-log-search.sh" "$@" ;;
   mark-done)   shift; exec "$SCRIPTS_DIR/shell-log-mark-done.sh" "$@" ;;
+  active)      shift; exec "$SCRIPTS_DIR/shell-log-active.sh" "$@" ;;
   cleanup)     shift; exec "$SCRIPTS_DIR/shell-log-cleanup.sh" "$@" ;;
   append)      shift; exec "$SCRIPTS_DIR/shell-log-append.sh" "$@" ;;
   file)        shift; exec "$SCRIPTS_DIR/shell-log-file.sh" "$@" ;;
+
+  stats)
+    LOG_DIR="$HOME/.claude/shell-logs"
+    TODAY=$(date +%Y-%m-%d)
+    LOG_FILE="$LOG_DIR/$TODAY.md"
+
+    if [ ! -f "$LOG_FILE" ]; then
+      echo "No log file for today ($TODAY)."
+      exit 0
+    fi
+
+    TOTAL_CMDS=$(grep -c '^\- \[' "$LOG_FILE" 2>/dev/null || echo 0)
+    SESSIONS=$(grep -c '^### Session:' "$LOG_FILE" 2>/dev/null || echo 0)
+    ACTIVE_BG=$(grep '\[BG\]' "$LOG_FILE" 2>/dev/null | grep -cv '\[BG:DONE\]' 2>/dev/null || echo 0)
+    DONE_BG=$(grep -c '\[BG:DONE\]' "$LOG_FILE" 2>/dev/null || echo 0)
+    LOG_SIZE=$(wc -c < "$LOG_FILE" 2>/dev/null | tr -d ' ')
+
+    printf "Today (%s):\n" "$TODAY"
+    printf "  Commands logged : %s\n" "$TOTAL_CMDS"
+    printf "  Sessions        : %s\n" "$SESSIONS"
+    printf "  Active BG       : %s\n" "$ACTIVE_BG"
+    printf "  Completed BG    : %s\n" "$DONE_BG"
+    printf "  Log file size   : %s bytes\n" "$LOG_SIZE"
+
+    # Show all log files
+    if [ -d "$LOG_DIR" ]; then
+      TOTAL_FILES=$(find "$LOG_DIR" -name "????-??-??.md" -type f 2>/dev/null | wc -l | tr -d ' ')
+      printf "  Total log files : %s\n" "$TOTAL_FILES"
+    fi
+    exit 0
+    ;;
+
   "")
     echo "Usage: shell-mem <command> [args...] | shell-mem -h" >&2
     exit 1
