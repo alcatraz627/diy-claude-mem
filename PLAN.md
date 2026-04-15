@@ -276,7 +276,7 @@ Copied to `~/.claude/scripts/diy-mem/shell-mem` (no `.sh` extension — clean CL
 
 ---
 
-## Phase 2 — Robust + Integrated
+## Phase 2 — Robust + Integrated ✓ Done
 
 **Goal:** Better PID tracking, noise filtering, WAL integration, deduplication, PreCompact snapshot.
 

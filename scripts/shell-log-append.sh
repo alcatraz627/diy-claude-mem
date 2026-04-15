@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Appends a shell command entry to today's log file.
 # Usage: shell-log-append.sh <session_id> <command> <is_bg> [pid]
+# Env:   DIYMEN_PORT=<port>  — detected port for server-type BG commands
 # Always exits 0.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -8,6 +9,7 @@ SESSION_ID="${1:-unknown}"
 COMMAND="${2:-unknown}"
 IS_BG="${3:-false}"
 PID="${4:-}"
+PORT="${DIYMEN_PORT:-}"
 
 LOG_FILE="$("$SCRIPT_DIR/shell-log-file.sh")" || exit 0
 TIMESTAMP="$(date +%H:%M:%S)"
@@ -36,7 +38,6 @@ estimate_duration() {
     *pg_dump*|*mongodump*|*mysqldump*)
                        echo "30m" ;;
     *"sleep "*)
-      # Parse the number from sleep command
       local num
       num=$(echo "$cmd" | grep -oE 'sleep +[0-9]+' | grep -oE '[0-9]+' | head -1)
       if [ -n "$num" ]; then
@@ -64,6 +65,9 @@ if [ "$IS_BG" = "true" ]; then
   LINE="$LINE [BG]"
   if [ -n "$PID" ]; then
     LINE="$LINE [pid:$PID]"
+  fi
+  if [ -n "$PORT" ]; then
+    LINE="$LINE [port:$PORT]"
   fi
 fi
 
